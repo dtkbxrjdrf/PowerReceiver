@@ -13,7 +13,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.Color;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
@@ -80,6 +80,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 // Send the notification
+                mNotifyManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
                 sendNotification();
             }
         });
@@ -123,19 +124,17 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void createNotificationChannel() {
-        mNotifyManager = (NotificationManager)
-                getSystemService(NOTIFICATION_SERVICE);
-        if (android.os.Build.VERSION.SDK_INT >=
-                android.os.Build.VERSION_CODES.O) {
-            // Create a NotificationChannel
-            NotificationChannel notificationChannel = new NotificationChannel(PRIMARY_CHANNEL_ID,
-                    "Mascot Notification", NotificationManager
-                    .IMPORTANCE_HIGH);
-            notificationChannel.enableLights(true);
-            notificationChannel.setLightColor(Color.RED);
-            notificationChannel.enableVibration(true);
-            notificationChannel.setDescription("Notification from Mascot");
-            mNotifyManager.createNotificationChannel(notificationChannel);
+        // Create the NotificationChannel, but only on API 26+ because
+        // the NotificationChannel class is new and not in the support library
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            CharSequence name = getString(R.string.notification_channel_name);
+            String description = getString(R.string.notification_channel_description);
+            int importance = NotificationManager.IMPORTANCE_HIGH;
+            NotificationChannel channel = new NotificationChannel(PRIMARY_CHANNEL_ID, name, importance);
+            channel.setDescription(description);
+            // Register the channel with the system
+            NotificationManager notificationManager = getSystemService(NotificationManager.class);
+            notificationManager.createNotificationChannel(channel);
         }
     }
 
@@ -146,9 +145,20 @@ public class MainActivity extends AppCompatActivity {
         PendingIntent updatePendingIntent = PendingIntent.getBroadcast(this,
                 NOTIFICATION_ID, updateIntent, PendingIntent.FLAG_ONE_SHOT);
 
+        // Create the InboxStyle.
+        NotificationCompat.InboxStyle inboxStyle =
+                new NotificationCompat.InboxStyle()
+                        .addLine("Here is the first one")
+                        .addLine("This is the second one")
+                        .addLine("This is third message")
+                        .setSummaryText("+3 more");
+
         // Build the notification with all of the parameters using helper
         // method.
         NotificationCompat.Builder notifyBuilder = getNotificationBuilder();
+
+        // Set the style of the notification to InboxStyle.
+        notifyBuilder.setStyle(inboxStyle);
 
         // Add the action button using the pending intent.
         notifyBuilder.addAction(R.drawable.ic_update,
@@ -168,7 +178,7 @@ public class MainActivity extends AppCompatActivity {
         Intent notificationIntent = new Intent(this, MainActivity.class);
         PendingIntent notificationPendingIntent = PendingIntent.getActivity
                 (this, NOTIFICATION_ID, notificationIntent,
-                        PendingIntent.FLAG_UPDATE_CURRENT);
+                        PendingIntent.FLAG_ONE_SHOT);
 
         // Build the notification with all of the parameters.
         NotificationCompat.Builder notifyBuilder = new NotificationCompat
@@ -184,17 +194,21 @@ public class MainActivity extends AppCompatActivity {
 
     public void updateNotification() {
         // Load the drawable resource into the a bitmap image.
-        Bitmap androidImage = BitmapFactory
-                .decodeResource(getResources(), R.drawable.mascot_1);
+        Bitmap androidImage = BitmapFactory.decodeResource(getResources(), R.drawable.mascot_1);
 
-        // Build the notification with all of the parameters using helper
-        // method.
+        // Build the notification with all of the parameters using helper method.
         NotificationCompat.Builder notifyBuilder = getNotificationBuilder();
 
         // Update the notification style to BigPictureStyle.
-        notifyBuilder.setStyle(new NotificationCompat.BigPictureStyle()
-                .bigPicture(androidImage)
-                .setBigContentTitle(getString(R.string.notification_updated)));
+        notifyBuilder.setStyle(new NotificationCompat.InboxStyle()
+                .setBigContentTitle(getString(R.string.notification_updated))
+                .addLine("Here is the first one")
+                .addLine("This is the second one")
+                .addLine("This is third message")
+                .setSummaryText("+3 more"));
+
+        // Set the large icon.
+        notifyBuilder.setLargeIcon(androidImage);
 
         // Deliver the notification.
         mNotifyManager.notify(NOTIFICATION_ID, notifyBuilder.build());
